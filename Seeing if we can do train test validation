@@ -1,0 +1,49 @@
+library(MASS)
+library(pscl)
+?bioChemists
+
+data<-bioChemists
+
+#shuffling dataset
+data.scram<-data[sample(1:nrow(data)),]
+
+#########################################
+#splitting data into test and train sets
+sample<-sample.int(nrow(data.scram), floor(.80*nrow(data.scram)), replace = F)
+train<-data[sample, ]
+test<-data[-sample, ]
+
+#fitting MLR model
+model<-lm(art~.,data=train)
+#model<-lm(art~phd+fem+kid5+mar+ment,data=train) #does order of predictors matter?
+summary(model)
+
+#checking if mar and fem are factors
+#is.factor(mar)
+
+#checking assumptions 
+#residual plot
+plot(model$fitted.values,model$residuals, main="Plot of Residuals against Fitted Values")
+abline(h=0,col="red")
+
+#ACF plot of residuals
+acf(model$residuals, main="ACF of Residuals")
+
+#normal probability or QQ plot of residuals
+qqnorm(model$residuals)
+qqline(model$residuals, col="red")
+
+#transforming y
+#fixing response variable must be positive error
+train$art.nonzero <- train$art + 0.0001
+model.nonzero<-lm(art.nonzero~.,data=train)
+boxcox(model.nonzero)
+
+#results from t tests keep changing depending on how data is scramble and partitioned into train and test
+#datasets. On top of that, results from boxcox plot look weird. Splitting our dataset into half, 75-25, 
+#and 80-20 all creates unstable results.
+
+#########################################
+
+#launch into Eli's code
+
