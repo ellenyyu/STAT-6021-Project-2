@@ -60,6 +60,8 @@ data.scram<-data[sample(1:nrow(data)),]
 data.scram$fem<-factor(data.scram$fem)
 data.scram$mar<-factor(data.scram$mar)
 data.scram$arteditscram<-data.scram$art + 0.01
+data.scram$kid5edit<-data.scram$kid5 + 0.01
+data.scram$mentedit<-data.scram$ment + 0.01
 
 #redo regression model for all variables
 scram_reg<-lm(arteditscram~fem+mar+kid5+phd+ment, data=data.scram)
@@ -98,5 +100,28 @@ pacf(trans_reg$residuals, main = "PACF Plot for Transformed data")
 qqnorm(trans_reg$residuals)
 qqline(trans_reg$residuals, col="red")
 
+#predictors?
+library(car)
+scatterplotMatrix(data.scram)
+boxTidwell(art.third~kid5edit+mentedit, other.x =~fem+mar, data = data.scram)
 
+#attempt ment transformation
+data.scram$ment_trans<-1/sqrt((data.scram$mentedit))
 
+trans_res_pred<-lm(art.third~fem+mar+kid5+phd+ment_trans, data=data.scram)
+summary(trans_res_pred)
+anova(trans_res_pred)
+
+#assumptions
+boxcox(trans_res_pred)
+
+plot(trans_res_pred$fitted.values,trans_res_pred$residuals,main="Residual plot - transformed res and pred")
+abline(h=0,col="red")
+
+acf(trans_res_pred$residuals, main = "ACF Plot for Transformed data")
+pacf(trans_res_pred$residuals, main = "PACF Plot for Transformed data")
+
+qqnorm(trans_res_pred$residuals)
+qqline(trans_res_pred$residuals, col="red")
+
+boxTidwell(art.third~kid5edit+ment_trans, other.x =~fem+mar, data = data.scram) #indicating that that transformation on ment is not helpful
