@@ -1,0 +1,21 @@
+############## model evaluation ##########################
+#testing models
+allreg<-regsubsets(art~., data=bioChemists, nbest=5)
+summary(allreg)
+
+##create a "data frame" that stores the predictors in the various models considered as well as their various criteria
+best <- as.data.frame(summary(allreg)$outmat)
+best$p <- as.numeric(substr(rownames(best),1,1))+1
+best$r2 <- summary(allreg)$rsq
+best$adjr2 <- summary(allreg)$adjr2
+best$mse <- (summary(allreg)$rss)/(dim(data)[1]-best$p)
+best$cp <- summary(allreg)$cp
+best$bic <- summary(allreg)$bic
+best
+
+##sort by various criteria
+best[order(best$r2,decreasing = TRUE),]
+best[order(best$adjr2,decreasing = TRUE),]
+best[order(best$mse),]
+best[order(best$cp),]
+best[order(best$bic),]
