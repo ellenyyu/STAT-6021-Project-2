@@ -1,0 +1,252 @@
+#load data in and necessary libraries
+
+library(pscl)
+library(MASS)
+library(car)
+library(leaps)
+?bioChemists
+View(bioChemists)
+data<-bioChemists
+
+#attach
+attach(data)
+
+#summary stats
+summary(data)
+
+#factor
+fem<-factor(fem)
+mar<-factor(mar)
+#check that factoring worked
+is.factor(fem)
+is.factor(mar)
+#check levels
+levels(fem)
+levels(mar)
+
+#checking reference
+contrasts(fem) #man is reference class
+contrasts(mar) #single is reference class
+
+#full inital regression
+artedit<-art + 0.01
+init_reg<-lm(artedit~fem+mar+kid5+phd+ment, data=data)
+summary(init_reg)
+anova(init_reg)
+
+#check correlation among quantitative variables
+preds<-cbind(fem,mar,kid5,phd,ment)
+round(cor(preds), 3) #mar and kid5 strongest correlation
+
+#residual plot of inital regression model
+plot(init_reg$fitted.values,init_reg$residuals,main="Residual plot")
+abline(h=0,col="red")
+
+#boxcox
+boxcox(init_reg, lambda = seq(0.2,0.4, 1/10))
+
+#acf and pacf
+acf(init_reg$residuals)
+pacf(init_reg$residuals)
+
+#normality assumptions
+qqnorm(init_reg$residuals)
+qqline(init_regt$residuals, col="red")
+
+
+
+
+###identified issue of ordering of number articles. scramble and rerun reg###
+set.seed(444)
+
+data.scram<-data[sample(1:nrow(data)),]
+data.scram$fem<-factor(data.scram$fem)
+data.scram$mar<-factor(data.scram$mar)
+data.scram$arteditscram<-data.scram$art + 0.01
+data.scram$kid5edit<-data.scram$kid5 + 0.01
+data.scram$mentedit<-data.scram$ment + 0.01
+
+#redo regression model for all variables
+scram_reg<-lm(arteditscram~fem+mar+kid5+phd+ment, data=data.scram)
+summary(scram_reg)
+anova(scram_reg)
+
+#rerun assumptions
+boxcox(scram_reg,lambda = seq(0.2,0.4, 1/10))
+
+plot(scram_reg$fitted.values,scram_reg$residuals,main="Residual plot - scrambled")
+abline(h=0,col="red")
+
+acf(scram_reg$residuals, main = "ACF Plot for Scrambled data")
+pacf(scram_reg$residuals, main = "PACF Plot for Scrambled data")
+
+qqnorm(scram_reg$residuals)
+qqline(scram_regt$residuals, col="red")
+
+
+#identified transformation on response variable
+data.scram$art.third<-(data.scram$arteditscram)^(3/10)
+
+trans_reg <- lm(art.third~fem+mar+kid5+phd+ment, data=data.scram)
+summary(trans_reg)
+anova(trans_reg)
+
+#assumptions
+boxcox(trans_reg)
+
+plot(trans_reg$fitted.values,trans_reg$residuals,main="Residual plot - transformed")
+abline(h=0,col="red")
+
+acf(trans_reg$residuals, main = "ACF Plot for Transformed data")
+pacf(trans_reg$residuals, main = "PACF Plot for Transformed data")
+
+qqnorm(trans_reg$residuals)
+qqline(trans_reg$residuals, col="red")
+
+#predictors?
+library(car)
+scatterplotMatrix(data.scram)
+boxTidwell(art.third~kid5edit+mentedit, other.x =~fem+mar, data = data.scram)
+
+#attempt ment transformation
+data.scram$ment_trans<-1/sqrt((data.scram$mentedit))
+
+trans_res_pred<-lm(art.third~fem+mar+kid5+phd+ment_trans, data=data.scram)
+summary(trans_res_pred)
+anova(trans_res_pred)
+
+#assumptions
+boxcox(trans_res_pred)
+
+plot(trans_res_pred$fitted.values,trans_res_pred$residuals,main="Residual plot - transformed res and pred")
+abline(h=0,col="red")
+
+acf(trans_res_pred$residuals, main = "ACF Plot for Transformed data")
+pacf(trans_res_pred$residuals, main = "PACF Plot for Transformed data")
+
+qqnorm(trans_res_pred$residuals)
+qqline(trans_res_pred$residuals, col="red")
+
+boxTidwell(art.third~kid5edit+ment_trans, other.x =~fem+mar, data = data.scram) #indicating that that transformation on ment is not helpful
+
+
+#shuffling dataset
+data.scram<-data[sample(1:nrow(data)),]
+
+########## train test validation ##############
+#splitting data into test and train sets
+sample<-sample.int(nrow(data.scram), floor(.80*nrow(data.scram)), replace = F)
+train<-data[sample, ]
+test<-data[-sample, ]
+
+#fitting MLR model
+model<-lm(art~.,data=train)
+#model<-lm(art~phd+fem+kid5+mar+ment,data=train) #does order of predictors matter?
+summary(model)
+
+#checking if mar and fem are factors
+#is.factor(mar)
+
+#checking assumptions 
+#residual plot
+plot(model$fitted.values,model$residuals, main="Plot of Residuals against Fitted Values")
+abline(h=0,col="red")
+
+#ACF plot of residuals
+acf(model$residuals, main="ACF of Residuals")
+
+#normal probability or QQ plot of residuals
+qqnorm(model$residuals)
+qqline(model$residuals, col="red")
+
+#transforming y
+#fixing response variable must be positive error
+train$art.nonzero <- train$art + 0.0001
+model.nonzero<-lm(art.nonzero~.,data=train)
+boxcox(model.nonzero)
+
+#results from t tests keep changing depending on how data is scramble and partitioned into train and test
+#datasets. On top of that, results from boxcox plot look weird. Splitting our dataset into half, 75-25, 
+#and 80-20 all creates unstable results.
+
+############## the model ##########################
+
+# We create the initial regression
+data.scram$art.plus<-data.scram$art + 0.01
+reg<-lm(art.plus~fem+mar+kid5+phd+ment, data=data.scram)
+
+# Checking data assumptions
+# transforming y
+boxcox(reg)
+
+data.scram$art.third<-(data.scram$art.plus)^(1/3)
+reg.third<-lm(art.third~fem+mar+kid5+phd+ment, data=data.scram)
+
+#double-checking model without phd
+reg.third2<-lm(art.third~fem+mar+kid5+ment, data=data.scram)
+summary(reg.third2)
+
+# residual plots
+plot(reg.third$fitted.values, reg.third$residuals)
+
+acf(reg.third$residuals)
+
+qqnorm(reg.third$residuals)
+qqline(reg.third$residuals)
+
+# scatterplots
+plot(art.third~kid5, data=data.scram)
+boxplot(art~fem, data=data.scram)
+boxplot(art~mar, data=data.scram)
+plot(art.third~phd, data=data.scram)
+plot(art.third~ment, data=data.scram)
+
+# Looking for best model
+summary(reg.third)
+regnull<-lm(art.third~1, data=data.scram)
+step(regnull, scope=list(lower=regnull, upper=reg.third), direction="forward")
+
+#checking for possible interaction effects
+# Marital status - kids affect?
+kid.contr<-lm(art.third~kid5+mar, data=data.scram)
+kid.test<-lm(art.third~kid5*mar, data=data.scram)
+
+anova(kid.contr, kid.test)
+# No single people w/ kids, oh well
+
+# Marital status - gender affect?
+gen.contr<-lm(art.third~fem+mar, data=data.scram)
+summary(gen.contr)
+gen.test<-lm(art.third~fem*mar, data=data.scram)
+summary(gen.test)
+
+anova(gen.contr, gen.test)
+
+# Gender - kids effect?
+
+############## model evaluation ##########################
+#testing models
+allreg<-regsubsets(art.third~fem+mar+kid5+phd+ment, data=data.scram, nbest=5)
+summary(allreg)
+
+##create a "data frame" that stores the predictors in the various models considered as well as their various criteria
+best <- as.data.frame(summary(allreg)$outmat)
+best$p <- as.numeric(substr(rownames(best),1,1))+1
+best$r2 <- summary(allreg)$rsq
+best$adjr2 <- summary(allreg)$adjr2
+best$mse <- (summary(allreg)$rss)/(dim(data)[1]-best$p)
+best$cp <- summary(allreg)$cp
+best$bic <- summary(allreg)$bic
+best
+
+##sort by various criteria
+best[order(best$r2,decreasing = TRUE),]
+best[order(best$adjr2,decreasing = TRUE),]
+best[order(best$mse),]
+best[order(best$cp),]
+best[order(best$bic),]
+
+#exploring SLR art and ment
+lm(data.scram$art~data.scram$ment)
+
+?lm
