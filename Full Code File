@@ -48,7 +48,7 @@ pacf(init_reg$residuals)
 
 #normality assumptions
 qqnorm(init_reg$residuals)
-qqline(init_regt$residuals, col="red")
+qqline(init_reg$residuals, col="red")
 
 
 
@@ -77,7 +77,7 @@ acf(scram_reg$residuals, main = "ACF Plot for Scrambled data")
 pacf(scram_reg$residuals, main = "PACF Plot for Scrambled data")
 
 qqnorm(scram_reg$residuals)
-qqline(scram_regt$residuals, col="red")
+qqline(scram_reg$residuals, col="red")
 
 
 #identified transformation on response variable
