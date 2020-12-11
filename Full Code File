@@ -1,6 +1,6 @@
+#Chelsea Alvarado, Eli Esrig, Ellen Yu, Vincent Terry
 #load data in and necessary libraries
 library(leaps)
-library(faraway)
 library(MASS)
 library(pscl)
 data <- as.data.frame(bioChemists)
@@ -30,10 +30,6 @@ artedit<-art + 0.01
 init_reg<-lm(artedit~fem+mar+kid5+phd+ment, data=data)
 summary(init_reg)
 anova(init_reg)
-
-#check correlation among quantitative variables
-preds<-cbind(fem,mar,kid5,phd,ment)
-round(cor(preds), 3) #mar and kid5 strongest correlation
 
 #residual plot of inital regression model
 plot(init_reg$fitted.values,init_reg$residuals,main="Residual plot")
@@ -99,9 +95,9 @@ pacf(trans_reg$residuals, main = "PACF Plot for Transformed data")
 qqnorm(trans_reg$residuals)
 qqline(trans_reg$residuals, col="red")
 
-#predictors?
+#predictor transformation
 library(car)
-scatterplotMatrix(data.scram)
+scatterplotMatrix(data.scram) #trying to see all scatterplots
 boxTidwell(art.third~kid5edit+mentedit, other.x =~fem+mar, data = data.scram)
 
 #attempt ment transformation
@@ -125,75 +121,35 @@ qqline(trans_res_pred$residuals, col="red")
 
 boxTidwell(art.third~kid5edit+ment_trans, other.x =~fem+mar, data = data.scram) #indicating that that transformation on ment is not helpful
 
-### Set-Up
-setwd("~/UVa/1st Semester - Fall 2020/STAT 6021 - Linear Models for Data Science/Homeworks/Project 2")
-
-set.seed(444)
-data<-read.csv("bioChemists.csv", header=TRUE)
-
-# Autocorrelation Issue
-acf_test<-lm(art~fem+mar+kid5+phd+ment, data=data)
-png("acf_init.png")
-acf(acf_test$residuals, main="ACF Plot")
-dev.off()
-
-data.scram<-data[sample(1:nrow(data)),]
-data.scram$fem<-factor(data.scram$fem)
-data.scram$mar<-factor(data.scram$mar)
-
-png("acf_scram.png")
-acf(lm(art~fem+mar+kid5+phd+ment, data=data.scram)$residuals,
-    main="ACF Plot")
-dev.off()
-
-# We create the initial regression
-
-data.scram$art.plus<-data.scram$art + 0.01
-
-reg<-lm(art.plus~fem+mar+kid5+phd+ment, data=data.scram)
-
-# Checking data assumptions
-
-png("res_init.png")
-plot(reg$fitted.values, reg$residuals,
-     main="Residual Plot")
-abline(h=0, col="red")
-dev.off()
-
-png("boxcox.png")
-boxcox(reg, lambda=c(0, 1, 0.001))
-dev.off()
-
-data.scram$art.third<-(data.scram$art.plus)^(.3)
-
-reg.third<-lm(art.third~fem+mar+kid5+phd+ment, data=data.scram)
-
-png("res_trans.png")
-plot(reg.third$fitted.values, reg.third$residuals,
-     main="Transformed Residual Plot")
-abline(h=0, col="red")
-dev.off()
-
-acf(reg.third$residuals)
-
-png("qqnorm.png")
-qqnorm(reg.third$residuals)
-qqline(reg.third$residuals)
-dev.off()
-
+#consideration of poisson regression
 # reg.pois<-glm(art.third~fem+mar+kid5+phd+ment, family="poison", data=data.scram)
+
+
+
+###analysis portion###
+
 
 # Scatterplots
 plot(art.third~kid5, data=data.scram)
-boxplot(art~fem, data=data.scram)
-boxplot(art~mar, data=data.scram)
 plot(art.third~phd, data=data.scram)
 plot(art.third~ment, data=data.scram)
 
-# Looking for best model
-regnull<-lm(art.third~1, data=data.scram)
-step(regnull, scope=list(lower=regnull, upper=reg.third), direction="forward")
+#looking at variance in categorical variables
+boxplot(art.third~fem, data=data.scram)
+boxplot(art.third~mar, data=data.scram)
 
+
+
+# Looking for best model
+#null, full and model searching
+regnull<-lm(art.third~1, data=data.scram)
+regfull<-lm(art.third~fem+mar+kid5+phd+ment, data=data.scram)
+step(regnull, scope=list(lower=regnull, upper=regfull), direction="both")
+step(regnull, scope=list(lower=regnull, upper=regfull), direction="forward")
+step(regfull, scope=list(lower=regnull, upper=regfull), direction="backward")
+
+
+#consideration of interactions
 # Marital status - kids affect?
 kid.contr<-lm(art.third~kid5+mar, data=data.scram)
 kid.test<-lm(art.third~kid5*mar, data=data.scram)
@@ -218,21 +174,21 @@ preds<-cbind(data.scram$fem,
              data.scram$ment)
 round(cor(preds), 4)
 
-vif(full.contr)
+vif(init_reg)
 
 ### Outlier check
 
 # Studentized residuals
-stud.res<-rstandard(reg.third)
+stud.res<-rstandard(regfull)
 
 # Ext. studentized residuals
-ext.stud.res<-rstudent(reg.third)
+ext.stud.res<-rstudent(regfull)
 
 # We graph the three
 par(mfrow=c(1,3))
-plot(reg.third$fitted.values, reg.third$residuals, main="Residuals")
-plot(reg.third$fitted.values, stud.res, main="Studentized Residuals")
-plot(reg.third$fitted.values, ext.stud.res, main="Externally Studentized Residuals")
+plot(regfull$fitted.values, regfull$residuals, main="Residuals")
+plot(regfull$fitted.values, stud.res, main="Studentized Residuals")
+plot(regfull$fitted.values, ext.stud.res, main="Externally Studentized Residuals")
 
 n<-length(data.scram)
 p<-6
@@ -250,7 +206,7 @@ abline(h=-crit.val.resp, col="red")
 
 # Next, predictor outliers
 
-lev<-lm.influence(reg.third)$hat
+lev<-lm.influence(regfull)$hat
 
 crit.val.pred<-2*p/n
 
@@ -261,18 +217,19 @@ abline(h=crit.val.pred, col="red")
 
 # Finally, let's look for influence
 
-DFFITS<-dffits(reg.third)
+DFFITS<-dffits(regfull)
 DFFITS[abs(DFFITS)>2*sqrt(p/n)]
 
-DFBETAS<-dfbetas(reg.third)
+DFBETAS<-dfbetas(regfull)
 DFBETAS[abs(DFBETAS)>2/sqrt(n)]
 
-COOKS<-cooks.distance(reg.third)
+COOKS<-cooks.distance(regfull)
 COOKS[COOKS>qf(0.5, p, n-p)]
 
 ############## model evaluation ##########################
 #testing models
-allreg<-regsubsets(art.third~fem+mar+kid5+phd+ment, data=data.scram, nbest=5)
+#all possible reg
+allreg <- regsubsets(art.third ~ fem + mar + kid5 + phd + ment, data = data.scram, nbest=9)
 summary(allreg)
 
 ##create a "data frame" that stores the predictors in the various models considered as well as their various criteria
@@ -291,3 +248,12 @@ best[order(best$adjr2,decreasing = TRUE),]
 best[order(best$mse),]
 best[order(best$cp),]
 best[order(best$bic),]
+
+####final model####
+#reg model with phd removed
+regmin<-lm(art.third~fem+mar+kid5+ment, data=data.scram)
+summary(regmin)
+anova(regmin)
+
+#compare full and final model
+anova(regfull, regmin)
